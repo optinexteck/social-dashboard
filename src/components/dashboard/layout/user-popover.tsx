@@ -13,7 +13,7 @@ import { SignOut as SignOutIcon } from '@phosphor-icons/react/dist/ssr/SignOut';
 import { User as UserIcon } from '@phosphor-icons/react/dist/ssr/User';
 
 import { paths } from '@/paths';
-import { authClient } from '@/lib/auth/client';
+import { authClient, Details } from '@/lib/auth/client';
 import { logger } from '@/lib/default-logger';
 import { useUser } from '@/hooks/use-user';
 
@@ -25,8 +25,25 @@ export interface UserPopoverProps {
 
 export function UserPopover({ anchorEl, onClose, open }: UserPopoverProps): React.JSX.Element {
   const { checkSession } = useUser();
-
   const router = useRouter();
+
+  // State to hold user details
+  const [user, setUser] = React.useState<{ firstName: string; email: string } | null>(null);
+
+  React.useEffect(() => {
+    async function fetchUser() {
+      const { data, error } = await Details();
+
+      if (error) {
+        logger.error('Failed to fetch user details', error);
+        setUser(null);
+      } else {
+        setUser(data);
+      }
+    }
+
+    fetchUser();
+  }, []);
 
   const handleSignOut = React.useCallback(async (): Promise<void> => {
     try {
@@ -40,9 +57,8 @@ export function UserPopover({ anchorEl, onClose, open }: UserPopoverProps): Reac
       // Refresh the auth state
       await checkSession?.();
 
-      // UserProvider, for this case, will not refresh the router and we need to do it manually
+      // Manually refresh the router
       router.refresh();
-      // After refresh, AuthGuard will handle the redirect
     } catch (err) {
       logger.error('Sign out error', err);
     }
@@ -57,10 +73,18 @@ export function UserPopover({ anchorEl, onClose, open }: UserPopoverProps): Reac
       slotProps={{ paper: { sx: { width: '240px' } } }}
     >
       <Box sx={{ p: '16px 20px ' }}>
-        <Typography variant="subtitle1">Sofia Rivers</Typography>
-        <Typography color="text.secondary" variant="body2">
-          sofia.rivers@devias.io
-        </Typography>
+        {user ? (
+          <>
+            <Typography variant="subtitle1">{user.firstName}</Typography>
+            <Typography color="text.secondary" variant="body2">
+              {user.email}
+            </Typography>
+          </>
+        ) : (
+          <Typography color="text.secondary" variant="body2">
+            Loading user...
+          </Typography>
+        )}
       </Box>
       <Divider />
       <MenuList disablePadding sx={{ p: '8px', '& .MuiMenuItem-root': { borderRadius: 1 } }}>
